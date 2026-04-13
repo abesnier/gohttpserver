@@ -1,21 +1,35 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/gob"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	openid "github.com/codeskyblue/openid-go"
 	"github.com/gorilla/sessions"
 )
 
+func newSessionSecret() []byte {
+	if s := os.Getenv("GHS_SESSION_SECRET"); s != "" {
+		return []byte(s)
+	}
+	log.Println("WARNING: GHS_SESSION_SECRET not set; generating a random session key. Sessions will not survive restarts.")
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		log.Fatal("failed to generate random session secret:", err)
+	}
+	return key
+}
+
 var (
 	nonceStore         = openid.NewSimpleNonceStore()
 	discoveryCache     = openid.NewSimpleDiscoveryCache()
-	store              = sessions.NewCookieStore([]byte("something-very-secret"))
+	store              = sessions.NewCookieStore(newSessionSecret())
 	defaultSessionName = "ghs-session"
 )
 
