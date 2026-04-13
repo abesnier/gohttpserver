@@ -142,6 +142,10 @@ func unzipFile(filename, dest string) error {
 	if dest == "" {
 		dest = filepath.Dir(filename)
 	}
+	dest, err = filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
 
 	for _, f := range zr.File {
 		rc, err := f.Open()
@@ -165,6 +169,15 @@ func unzipFile(filename, dest string) error {
 			if err == nil {
 				fpath = fpathUtf8
 			}
+		}
+
+		// Zip Slip protection: ensure the resolved path stays within dest
+		resolvedPath, err := filepath.Abs(fpath)
+		if err != nil {
+			return fmt.Errorf("invalid path %q: %w", fpath, err)
+		}
+		if !strings.HasPrefix(resolvedPath, dest+string(os.PathSeparator)) && resolvedPath != dest {
+			return fmt.Errorf("illegal file path in zip: %q escapes destination directory", f.Name)
 		}
 
 		if f.FileInfo().IsDir() {
