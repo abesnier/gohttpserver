@@ -636,7 +636,9 @@ func (s *HTTPStaticServer) hJSONList(w http.ResponseWriter, r *http.Request) {
 
 	data, _ := json.Marshal(map[string]interface{}{
 		"files": lrs,
-		"auth":  auth,
+		// Remove auth info for security reason, that prevents .ghs.yml to be fully sent to a user that would ask for ?json=true
+		// See https://github.com/codeskyblue/gohttpserver/issues/231
+		//"auth":  auth,
 	})
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
