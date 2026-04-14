@@ -284,6 +284,7 @@
     var META = document.getElementsByTagName("meta");
     META[2]["content"]=$('.navbar').css('border-color');
   </script>
+  <!--  Disable Google Analytics completely
   [[if .GoogleTrackerID ]]
   <script>
     (function (i, s, o, g, r, a, m) {
@@ -301,6 +302,7 @@
     ga('create', '[[.GoogleTrackerID]]', 'auto');
     ga('send', 'pageview');
   </script> [[ end ]]
+  -->
 </body>
 
 </html>
