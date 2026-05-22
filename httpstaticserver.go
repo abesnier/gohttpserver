@@ -374,12 +374,25 @@ func (s *HTTPStaticServer) hUnzip(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func combineURL(r *http.Request, path string) *url.URL {
-	return &url.URL{
-		Scheme: r.URL.Scheme,
-		Host:   r.Host,
-		Path:   path,
+func requestScheme(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
 	}
+	return "http"
+}
+
+func (s *HTTPStaticServer) generatePlistData(r *http.Request, path string) ([]byte, error) {
+	relPath := s.getRealPath(r)
+	plinfo, err := parseIPA(relPath)
+	if err != nil {
+		return nil, err
+	}
+
+	baseURL := &url.URL{
+		Scheme: requestScheme(r),
+		Host:   r.Host,
+	}
+	return generateDownloadPlist(baseURL, path, plinfo)
 }
 
 func (s *HTTPStaticServer) hPlist(w http.ResponseWriter, r *http.Request) {
@@ -396,12 +409,8 @@ func (s *HTTPStaticServer) hPlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
 	baseURL := &url.URL{
-		Scheme: scheme,
+		Scheme: requestScheme(r),
 		Host:   r.Host,
 	}
 	data, err := generateDownloadPlist(baseURL, path, plinfo)
@@ -417,13 +426,24 @@ func (s *HTTPStaticServer) hIpaLink(w http.ResponseWriter, r *http.Request) {
 	path := mux.Vars(r)["path"]
 	var plistUrl string
 
-	if r.URL.Scheme == "https" {
-		plistUrl = combineURL(r, "/-/ipa/plist/"+path).String()
+	if r.TLS != nil {
+		plistUrl = (&url.URL{
+			Scheme: "https",
+			Host:   r.Host,
+			Path:   "/-/ipa/plist/" + path,
+		}).String()
 	} else if s.PlistProxy != "" {
-		httpPlistLink := "http://" + r.Host + "/-/ipa/plist/" + path
-		url, err := s.genPlistLink(httpPlistLink)
+		plistData, err := s.generatePlistData(r, path)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			log.Printf("failed to generate plist data for %q: %v", path, err)
+			http.Error(w, "500: plist generation failed", 500)
+			return
+		}
+
+		url, err := s.genPlistLink(plistData)
+		if err != nil {
+			log.Printf("failed to upload plist data for %q: %v", path, err)
+			http.Error(w, "500: plist generation failed", 500)
 			return
 		}
 		plistUrl = url
@@ -440,20 +460,13 @@ func (s *HTTPStaticServer) hIpaLink(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *HTTPStaticServer) genPlistLink(httpPlistLink string) (plistUrl string, err error) {
+func (s *HTTPStaticServer) genPlistLink(plistData []byte) (plistUrl string, err error) {
 	// Maybe need a proxy, a little slowly now.
 	pp := s.PlistProxy
 	if pp == "" {
 		pp = defaultPlistProxy
 	}
-	resp, err := http.Get(httpPlistLink)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	data, _ := ioutil.ReadAll(resp.Body)
-	retData, err := http.Post(pp, "text/xml", bytes.NewBuffer(data))
+	retData, err := http.Post(pp, "text/xml", bytes.NewBuffer(plistData))
 	if err != nil {
 		return
 	}
@@ -462,6 +475,10 @@ func (s *HTTPStaticServer) genPlistLink(httpPlistLink string) (plistUrl string, 
 	jsonData, _ := ioutil.ReadAll(retData.Body)
 	var ret map[string]string
 	if err = json.Unmarshal(jsonData, &ret); err != nil {
+		return
+	}
+	if ret["key"] == "" {
+		err = errors.New("invalid plistproxy response")
 		return
 	}
 	plistUrl = pp + "/" + ret["key"]
