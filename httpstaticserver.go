@@ -95,6 +95,8 @@ func NewHTTPStaticServer(root string, noIndex bool) *HTTPStaticServer {
 }
 
 func (s *HTTPStaticServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Defense-in-depth for uploaded content and README previews.
+	w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
 	s.m.ServeHTTP(w, r)
 }
 
