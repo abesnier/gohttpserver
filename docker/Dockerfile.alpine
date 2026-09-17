@@ -5,7 +5,7 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 # Binary Compression
-RUN apk add upx --no-cache
+RUN apk upgrade --no-cache && apk add upx --no-cache
 
 # Build app and pack using upx
 ADD . /app
@@ -16,4 +16,4 @@ WORKDIR /app
 ADD assets /usr/local/bin/assets
 COPY --from=build /app/gohttpserver /usr/local/bin/gohttpserver
 EXPOSE 8000
-ENTRYPOINT [ "/usr/local/bin/gohttpserver" ]
+ENTRYPOINT [ "/usr/local/bin/gohttpserver" , "--root=/app/public"]
