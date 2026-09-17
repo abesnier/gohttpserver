@@ -39,10 +39,6 @@ function showErrorMessage(jqXHR) {
 var vm = new Vue({
   el: "#app",
   data: {
-    user: {
-      email: "",
-      name: "",
-    },
     location: window.location,
     breadcrumb: [],
     showHidden: false,
@@ -88,6 +84,8 @@ var vm = new Vue({
           method: 'GET',
           success: function (res) {
             var converter = new showdown.Converter({
+              // Disable raw HTML passthrough so uploaded README.md cannot inject scripts.
+              noHTML: true,
               tables: true,
               omitExtraWLInCodeBlocks: true,
               parseImgDimensions: true,
@@ -113,17 +111,6 @@ var vm = new Vue({
     },
   },
   created: function () {
-    $.ajax({
-      url: "/-/user",
-      method: "get",
-      dataType: "json",
-      success: function (ret) {
-        if (ret) {
-          this.user.email = ret.email;
-          this.user.name = ret.name;
-        }
-      }.bind(this)
-    })
     this.myDropzone = new Dropzone("#upload-form", {
       paramName: "file",
       maxFilesize: 10240,
@@ -168,8 +155,6 @@ var vm = new Vue({
       var pathname = decodeURI(location.pathname);
       if (!name) {
         parts.push(pathname);
-      } else if (getExtention(name) == "ipa") {
-        parts.push("/-/ipa/link", pathname, encodeURIComponent(name));
       } else {
         parts.push(pathname, name);
       }
@@ -191,9 +176,6 @@ var vm = new Vue({
       var search = location.search;
       var sep = search == "" ? "?" : "&"
       return location.origin + this.getEncodePath(f.name) + location.search + sep + "download=true";
-    },
-    shouldHaveQrcode: function (name) {
-      return ['apk', 'ipa'].indexOf(getExtention(name)) !== -1;
     },
     genFileClass: function (f) {
       if (f.type == "dir") {
@@ -225,11 +207,8 @@ var vm = new Vue({
         case "jpeg":
         case "tiff":
           return "fa-file-picture-o";
-        case "ipa":
         case "dmg":
           return "fa-apple";
-        case "apk":
-          return "fa-android";
         case "exe":
           return "fa-windows";
       }
