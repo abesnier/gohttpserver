@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"runtime"
@@ -39,7 +38,6 @@ type Configure struct {
 	XHeaders        bool     `yaml:"xheaders"`
 	Upload          bool     `yaml:"upload"`
 	Delete          bool     `yaml:"delete"`
-	PlistProxy      string   `yaml:"plistproxy"`
 	Title           string   `yaml:"title"`
 	Debug           bool     `yaml:"debug"`
 	GoogleTrackerID string   `yaml:"google-tracker-id"`
@@ -61,10 +59,9 @@ func (l httpLogger) Log(record accesslog.LogRecord) {
 }
 
 var (
-	defaultPlistProxy = "https://plistproxy.herokuapp.com/plist"
-	defaultOpenID     = "https://login.netease.com/openid"
-	gcfg              = Configure{}
-	logger            = httpLogger{}
+	defaultOpenID = "https://login.netease.com/openid"
+	gcfg          = Configure{}
+	logger        = httpLogger{}
 
 	VERSION   = "unknown"
 	BUILDTIME = "unknown time"
@@ -98,7 +95,6 @@ func parseFlags() error {
 	gcfg.Port = 8000
 	gcfg.Addr = ""
 	gcfg.Theme = "black"
-	gcfg.PlistProxy = defaultPlistProxy
 	gcfg.Auth.OpenID = defaultOpenID
 	gcfg.GoogleTrackerID = "UA-81205425-2"
 	gcfg.Title = "Go HTTP File Server"
@@ -122,7 +118,6 @@ func parseFlags() error {
 	kingpin.Flag("delete", "enable delete support").BoolVar(&gcfg.Delete)
 	kingpin.Flag("xheaders", "used when behide nginx").BoolVar(&gcfg.XHeaders)
 	kingpin.Flag("debug", "enable debug mode").BoolVar(&gcfg.Debug)
-	kingpin.Flag("plistproxy", "plist proxy when server is not https").Short('p').StringVar(&gcfg.PlistProxy)
 	kingpin.Flag("title", "server title").StringVar(&gcfg.Title)
 	kingpin.Flag("google-tracker-id", "set to empty to disable it").StringVar(&gcfg.GoogleTrackerID)
 	kingpin.Flag("deep-path-max-depth", "set to -1 to not combine dirs").IntVar(&gcfg.DeepPathMaxDepth)
@@ -214,18 +209,6 @@ func main() {
 	ss.Delete = gcfg.Delete
 	ss.AuthType = gcfg.Auth.Type
 	ss.DeepPathMaxDepth = gcfg.DeepPathMaxDepth
-
-	if gcfg.PlistProxy != "" {
-		u, err := url.Parse(gcfg.PlistProxy)
-		if err != nil {
-			log.Fatal(err)
-		}
-		u.Scheme = "https"
-		ss.PlistProxy = u.String()
-	}
-	if ss.PlistProxy != "" {
-		log.Printf("plistproxy: %s", strconv.Quote(ss.PlistProxy))
-	}
 
 	var hdlr http.Handler = ss
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"log"
 	"mime"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,19 +21,9 @@ import (
 
 	"github.com/go-yaml/yaml"
 	"github.com/gorilla/mux"
-	"github.com/shogo82148/androidbinary/apk"
 )
 
 const YAMLCONF = ".ghs.yml"
-
-type ApkInfo struct {
-	PackageName  string `json:"packageName"`
-	MainActivity string `json:"mainActivity"`
-	Version      struct {
-		Code int    `json:"code"`
-		Name string `json:"name"`
-	} `json:"version"`
-}
 
 type IndexFileItem struct {
 	Path string
@@ -54,7 +42,6 @@ type HTTPStaticServer struct {
 	Delete           bool
 	Title            string
 	Theme            string
-	PlistProxy       string
 	GoogleTrackerID  string
 	AuthType         string
 	DeepPathMaxDepth int
@@ -100,9 +87,6 @@ func NewHTTPStaticServer(root string, noIndex bool) *HTTPStaticServer {
 		}()
 	}
 
-	// routers for Apple *.ipa
-	m.HandleFunc("/-/ipa/plist/{path:.*}", s.hPlist)
-	m.HandleFunc("/-/ipa/link/{path:.*}", s.hIpaLink)
 	m.HandleFunc("/-/video-player/{path:.*}", s.hVideoPlayer)
 
 	m.HandleFunc("/{path:.*}", s.hIndex).Methods("GET", "HEAD")
@@ -305,25 +289,6 @@ type FileJSONInfo struct {
 	Extra   interface{} `json:"extra,omitempty"`
 }
 
-// path should be absolute
-func parseApkInfo(path string) (ai *ApkInfo) {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println("parse-apk-info panic:", err)
-		}
-	}()
-	apkf, err := apk.OpenFile(path)
-	if err != nil {
-		return
-	}
-	ai = &ApkInfo{}
-	ai.MainActivity, _ = apkf.MainActivity()
-	ai.PackageName = apkf.PackageName()
-	ai.Version.Code = apkf.Manifest().VersionCode
-	ai.Version.Name = apkf.Manifest().VersionName
-	return
-}
-
 func (s *HTTPStaticServer) hInfo(w http.ResponseWriter, r *http.Request) {
 	path := mux.Vars(r)["path"]
 	relPath := s.getRealPath(r)
@@ -343,9 +308,6 @@ func (s *HTTPStaticServer) hInfo(w http.ResponseWriter, r *http.Request) {
 	switch ext {
 	case ".md":
 		fji.Type = "markdown"
-	case ".apk":
-		fji.Type = "apk"
-		fji.Extra = parseApkInfo(relPath)
 	case "":
 		fji.Type = "dir"
 	default:
@@ -372,117 +334,6 @@ func (s *HTTPStaticServer) hUnzip(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-}
-
-func requestScheme(r *http.Request) string {
-	if r.TLS != nil {
-		return "https"
-	}
-	return "http"
-}
-
-func (s *HTTPStaticServer) generatePlistData(r *http.Request, path string) ([]byte, error) {
-	relPath := s.getRealPath(r)
-	plinfo, err := parseIPA(relPath)
-	if err != nil {
-		return nil, err
-	}
-
-	baseURL := &url.URL{
-		Scheme: requestScheme(r),
-		Host:   r.Host,
-	}
-	return generateDownloadPlist(baseURL, path, plinfo)
-}
-
-func (s *HTTPStaticServer) hPlist(w http.ResponseWriter, r *http.Request) {
-	path := mux.Vars(r)["path"]
-	// rename *.plist to *.ipa
-	if filepath.Ext(path) == ".plist" {
-		path = path[0:len(path)-6] + ".ipa"
-	}
-
-	relPath := s.getRealPath(r)
-	plinfo, err := parseIPA(relPath)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	baseURL := &url.URL{
-		Scheme: requestScheme(r),
-		Host:   r.Host,
-	}
-	data, err := generateDownloadPlist(baseURL, path, plinfo)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	w.Header().Set("Content-Type", "text/xml")
-	w.Write(data)
-}
-
-func (s *HTTPStaticServer) hIpaLink(w http.ResponseWriter, r *http.Request) {
-	path := mux.Vars(r)["path"]
-	var plistUrl string
-
-	if r.TLS != nil {
-		plistUrl = (&url.URL{
-			Scheme: "https",
-			Host:   r.Host,
-			Path:   "/-/ipa/plist/" + path,
-		}).String()
-	} else if s.PlistProxy != "" {
-		plistData, err := s.generatePlistData(r, path)
-		if err != nil {
-			log.Printf("failed to generate plist data for %q: %v", path, err)
-			http.Error(w, "500: plist generation failed", 500)
-			return
-		}
-
-		url, err := s.genPlistLink(plistData)
-		if err != nil {
-			log.Printf("failed to upload plist data for %q: %v", path, err)
-			http.Error(w, "500: plist generation failed", 500)
-			return
-		}
-		plistUrl = url
-	} else {
-		http.Error(w, "500: Server should be https:// or provide valid plistproxy", 500)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	log.Println("PlistURL:", plistUrl)
-	renderHTML(w, "assets/ipa-install.html", map[string]string{
-		"Name":      filepath.Base(path),
-		"PlistLink": plistUrl,
-	})
-}
-
-func (s *HTTPStaticServer) genPlistLink(plistData []byte) (plistUrl string, err error) {
-	// Maybe need a proxy, a little slowly now.
-	pp := s.PlistProxy
-	if pp == "" {
-		pp = defaultPlistProxy
-	}
-	retData, err := http.Post(pp, "text/xml", bytes.NewBuffer(plistData))
-	if err != nil {
-		return
-	}
-	defer retData.Body.Close()
-
-	jsonData, _ := ioutil.ReadAll(retData.Body)
-	var ret map[string]string
-	if err = json.Unmarshal(jsonData, &ret); err != nil {
-		return
-	}
-	if ret["key"] == "" {
-		err = errors.New("invalid plistproxy response")
-		return
-	}
-	plistUrl = pp + "/" + ret["key"]
-	return
 }
 
 func (s *HTTPStaticServer) hFileOrDirectory(w http.ResponseWriter, r *http.Request) {

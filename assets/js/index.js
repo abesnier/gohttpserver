@@ -168,8 +168,6 @@ var vm = new Vue({
       var pathname = decodeURI(location.pathname);
       if (!name) {
         parts.push(pathname);
-      } else if (getExtention(name) == "ipa") {
-        parts.push("/-/ipa/link", pathname, encodeURIComponent(name));
       } else {
         parts.push(pathname, name);
       }
@@ -191,9 +189,6 @@ var vm = new Vue({
       var search = location.search;
       var sep = search == "" ? "?" : "&"
       return location.origin + this.getEncodePath(f.name) + location.search + sep + "download=true";
-    },
-    shouldHaveQrcode: function (name) {
-      return ['apk', 'ipa'].indexOf(getExtention(name)) !== -1;
     },
     genFileClass: function (f) {
       if (f.type == "dir") {
@@ -225,11 +220,8 @@ var vm = new Vue({
         case "jpeg":
         case "tiff":
           return "fa-file-picture-o";
-        case "ipa":
         case "dmg":
           return "fa-apple";
-        case "apk":
-          return "fa-android";
         case "exe":
           return "fa-windows";
       }

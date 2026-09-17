@@ -33,8 +33,6 @@ Tested with go-1.16
 1. [x] Partial reload pages when directory change
 1. [x] When only one dir under dir, path will combine two together
 1. [x] Directory zip download
-1. [x] Apple ipa auto generate .plist file, qrcode can be recognized by iphone (Require https)
-1. [x] Plist proxy
 1. [ ] Download count statistics
 1. [x] CORS enabled
 1. [ ] Offline download
@@ -49,8 +47,6 @@ Tested with go-1.16
 1. [ ] Folder upload
 1. [ ] Support sort by size or modified time
 1. [x] Add version info into index page
-1. [ ] Add api `/-/info/some.(apk|ipa)` to get detail info
-1. [x] Add api `/-/apk/info/some.apk` to get android package info
 1. [x] Auto tag version
 1. [x] Custom title support
 1. [x] Support setting from conf file
@@ -195,26 +191,6 @@ accessTables:
 - regex: visual.file
   allow: true
 ```
-
-### ipa plist proxy
-This is used for server on which https is enabled. default use <https://plistproxy.herokuapp.com/plist>
-
-```bash
-$ gohttpserver --plistproxy=https://someproxyhost.com/
-```
-
-Test if proxy works:
-
-```sh
-$ http POST https://someproxyhost.com/plist < app.plist
-{
-	"key": "18f99211"
-}
-$ http GET https://someproxyhost.com/plist/18f99211
-# show the app.plist content
-```
-
-If your ghs running behide nginx server and have https configed. plistproxy will be disabled automaticly.
 
 ### Upload with CURL
 For example, upload a file named `foo.txt` to directory `somedir`
