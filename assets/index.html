@@ -37,32 +37,6 @@
                 <span class="glyphicon glyphicon-qrcode"></span>
               </a>
             </li>
-            [[if eq .AuthType "openid"]]
-            <template v-if="!user.email">
-              <a href="/-/login" class="btn btn-sm btn-default navbar-btn">
-                Sign in <span class="glyphicon glyphicon-user"></span>
-              </a>
-            </template>
-            <template v-else>
-              <a href="/-/logout" class="btn btn-sm btn-default navbar-btn">
-                <span v-text="user.name"></span>
-                <i class="fa fa-sign-out"></i>
-              </a>
-            </template>
-            [[end]]
-            [[if eq .AuthType "oauth2-proxy"]]
-            <template v-if="!user.email">
-                <a href="#" class="btn btn-sm btn-default navbar-btn">
-                    Guest <span class="glyphicon glyphicon-user"></span>
-                </a>
-            </template>
-            <template v-else>
-                <a href="/-/logout" class="btn btn-sm btn-default navbar-btn">
-                    <span v-text="user.name"></span>
-                    <i class="fa fa-sign-out"></i>
-                </a>
-            </template>
-            [[end]]
           </ul>
 
           [[if not .NoIndex ]]

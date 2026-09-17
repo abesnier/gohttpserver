@@ -42,11 +42,8 @@ type Configure struct {
 	Debug           bool     `yaml:"debug"`
 	GoogleTrackerID string   `yaml:"google-tracker-id"`
 	Auth            struct {
-		Type   string   `yaml:"type"` // openid|http|github
-		OpenID string   `yaml:"openid"`
-		HTTP   []string `yaml:"http"`
-		ID     string   `yaml:"id"`     // for oauth2
-		Secret string   `yaml:"secret"` // for oauth2
+		Type string   `yaml:"type"` // http
+		HTTP []string `yaml:"http"`
 	} `yaml:"auth"`
 	DeepPathMaxDepth int  `yaml:"deep-path-max-depth"`
 	NoIndex          bool `yaml:"no-index"`
@@ -59,9 +56,8 @@ func (l httpLogger) Log(record accesslog.LogRecord) {
 }
 
 var (
-	defaultOpenID = "https://login.netease.com/openid"
-	gcfg          = Configure{}
-	logger        = httpLogger{}
+	gcfg   = Configure{}
+	logger = httpLogger{}
 
 	VERSION   = "unknown"
 	BUILDTIME = "unknown time"
@@ -95,7 +91,6 @@ func parseFlags() error {
 	gcfg.Port = 8000
 	gcfg.Addr = ""
 	gcfg.Theme = "black"
-	gcfg.Auth.OpenID = defaultOpenID
 	gcfg.GoogleTrackerID = "UA-81205425-2"
 	gcfg.Title = "Go HTTP File Server"
 	gcfg.DeepPathMaxDepth = 5
@@ -110,9 +105,8 @@ func parseFlags() error {
 	kingpin.Flag("addr", "listen address, eg 127.0.0.1:8000").Short('a').StringVar(&gcfg.Addr)
 	kingpin.Flag("cert", "tls cert.pem path").StringVar(&gcfg.Cert)
 	kingpin.Flag("key", "tls key.pem path").StringVar(&gcfg.Key)
-	kingpin.Flag("auth-type", "Auth type <http|openid>").StringVar(&gcfg.Auth.Type)
+	kingpin.Flag("auth-type", "Auth type <http>").StringVar(&gcfg.Auth.Type)
 	kingpin.Flag("auth-http", "HTTP basic auth (ex: user:pass)").StringsVar(&gcfg.Auth.HTTP)
-	kingpin.Flag("auth-openid", "OpenID auth identity url").StringVar(&gcfg.Auth.OpenID)
 	kingpin.Flag("theme", "web theme, one of <black|green>").StringVar(&gcfg.Theme)
 	kingpin.Flag("upload", "enable upload support").BoolVar(&gcfg.Upload)
 	kingpin.Flag("delete", "enable delete support").BoolVar(&gcfg.Delete)
@@ -207,7 +201,6 @@ func main() {
 	ss.GoogleTrackerID = gcfg.GoogleTrackerID
 	ss.Upload = gcfg.Upload
 	ss.Delete = gcfg.Delete
-	ss.AuthType = gcfg.Auth.Type
 	ss.DeepPathMaxDepth = gcfg.DeepPathMaxDepth
 
 	var hdlr http.Handler = ss
@@ -215,15 +208,8 @@ func main() {
 	hdlr = accesslog.NewLoggingHandler(hdlr, logger)
 
 	// HTTP Basic Authentication
-	switch gcfg.Auth.Type {
-	case "http":
+	if gcfg.Auth.Type == "http" {
 		hdlr = multiBasicAuth(gcfg.Auth.HTTP)(hdlr)
-	case "openid":
-		handleOpenID(gcfg.Auth.OpenID, false) // FIXME(ssx): set secure default to false
-		// case "github":
-		// 	handleOAuth2ID(gcfg.Auth.Type, gcfg.Auth.ID, gcfg.Auth.Secret) // FIXME(ssx): set secure default to false
-	case "oauth2-proxy":
-		handleOauth2()
 	}
 
 	// CORS

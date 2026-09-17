@@ -39,10 +39,6 @@ function showErrorMessage(jqXHR) {
 var vm = new Vue({
   el: "#app",
   data: {
-    user: {
-      email: "",
-      name: "",
-    },
     location: window.location,
     breadcrumb: [],
     showHidden: false,
@@ -113,17 +109,6 @@ var vm = new Vue({
     },
   },
   created: function () {
-    $.ajax({
-      url: "/-/user",
-      method: "get",
-      dataType: "json",
-      success: function (ret) {
-        if (ret) {
-          this.user.email = ret.email;
-          this.user.name = ret.name;
-        }
-      }.bind(this)
-    })
     this.myDropzone = new Dropzone("#upload-form", {
       paramName: "file",
       maxFilesize: 10240,

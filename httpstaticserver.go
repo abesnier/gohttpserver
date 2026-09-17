@@ -43,7 +43,6 @@ type HTTPStaticServer struct {
 	Title            string
 	Theme            string
 	GoogleTrackerID  string
-	AuthType         string
 	DeepPathMaxDepth int
 	NoIndex          bool
 
@@ -158,7 +157,7 @@ func (s *HTTPStaticServer) hDelete(w http.ResponseWriter, req *http.Request) {
 	realPath := s.getRealPath(req)
 	// path = filepath.Clean(path) // for safe reason, prevent path contain ..
 	auth := s.readAccessConf(realPath)
-	if !auth.canDelete(req) {
+	if !auth.Delete {
 		http.Error(w, "Delete forbidden", http.StatusForbidden)
 		return
 	}
@@ -354,10 +353,7 @@ type AccessTable struct {
 }
 
 type UserControl struct {
-	Email string
-	// Access bool
 	Upload bool
-	Delete bool
 	Token  string
 }
 
@@ -388,24 +384,6 @@ func (c *AccessConf) canAccess(fileName string) bool {
 	return true
 }
 
-func (c *AccessConf) canDelete(r *http.Request) bool {
-	session, err := store.Get(r, defaultSessionName)
-	if err != nil {
-		return c.Delete
-	}
-	val := session.Values["user"]
-	if val == nil {
-		return c.Delete
-	}
-	userInfo := val.(*UserInfo)
-	for _, rule := range c.Users {
-		if rule.Email == userInfo.Email {
-			return rule.Delete
-		}
-	}
-	return c.Delete
-}
-
 func (c *AccessConf) canUploadByToken(token string) bool {
 	for _, rule := range c.Users {
 		if rule.Token == token {
@@ -420,21 +398,6 @@ func (c *AccessConf) canUpload(r *http.Request) bool {
 	if token != "" {
 		return c.canUploadByToken(token)
 	}
-	session, err := store.Get(r, defaultSessionName)
-	if err != nil {
-		return c.Upload
-	}
-	val := session.Values["user"]
-	if val == nil {
-		return c.Upload
-	}
-	userInfo := val.(*UserInfo)
-
-	for _, rule := range c.Users {
-		if rule.Email == userInfo.Email {
-			return rule.Upload
-		}
-	}
 	return c.Upload
 }
 
@@ -444,7 +407,6 @@ func (s *HTTPStaticServer) hJSONList(w http.ResponseWriter, r *http.Request) {
 	search := r.FormValue("search")
 	auth := s.readAccessConf(realPath)
 	auth.Upload = auth.canUpload(r)
-	auth.Delete = auth.canDelete(r)
 	maxDepth := s.DeepPathMaxDepth
 
 	// path string -> info os.FileInfo
