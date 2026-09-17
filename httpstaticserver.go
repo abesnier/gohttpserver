@@ -19,8 +19,8 @@ import (
 
 	"regexp"
 
-	"github.com/go-yaml/yaml"
 	"github.com/gorilla/mux"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const YAMLCONF = ".ghs.yml"

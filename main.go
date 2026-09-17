@@ -19,10 +19,10 @@ import (
 
 	"github.com/alecthomas/kingpin"
 	accesslog "github.com/codeskyblue/go-accesslog"
-	"github.com/go-yaml/yaml"
 	"github.com/goji/httpauth"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type Configure struct {

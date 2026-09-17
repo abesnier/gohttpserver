@@ -254,7 +254,7 @@ server {
 The search query follows common format rules just like Google. Keywords are seperated with space(s), keywords with prefix `-` will be excluded in search results.
 
 1. `hello world` means must contains `hello` and `world`
-1. `hello -world` means must contains `hello` but not contains `world`
+2. `hello -world` means must contains `hello` but not contains `world`
 
 ## Developer Guide
 
