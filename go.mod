@@ -1,4 +1,4 @@
-module github.com/codeskyblue/gohttpserver
+module github.com/abesnier/gohttpserver
 
 go 1.16
 

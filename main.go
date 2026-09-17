@@ -69,7 +69,7 @@ var (
 	VERSION   = "unknown"
 	BUILDTIME = "unknown time"
 	GITCOMMIT = "unknown git commit"
-	SITE      = "https://github.com/codeskyblue/gohttpserver"
+	SITE      = "https://github.com/abesnier/gohttpserver"
 )
 
 func versionMessage() string {
