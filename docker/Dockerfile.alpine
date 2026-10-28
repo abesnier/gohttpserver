@@ -1,4 +1,7 @@
-FROM golang:1.27-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
+
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /app
 COPY go.mod .
@@ -9,7 +12,7 @@ RUN apk upgrade --no-cache && apk add upx --no-cache
 
 # Build app and pack using upx
 ADD . /app
-RUN go mod tidy && go mod download &&  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags '-s -w -X main.VERSION=docker' -o gohttpserver && upx gohttpserver
+RUN go mod tidy && go mod download &&  CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags '-s -w -X main.VERSION=docker' -o gohttpserver && upx gohttpserver
 
 FROM alpine:3
 WORKDIR /app
